@@ -11,7 +11,7 @@ resources:
 variables:
   tag: 'whatever.$(Build.BuildId)'
   RAMP_UP: '1'
-  DARATION: '60'
+  DURATION: '60'
   VUSERS: '10'
 
 stages:
