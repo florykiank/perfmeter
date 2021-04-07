@@ -1,0 +1,43 @@
+# Docker
+# Build a Docker image
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+- release-1.5
+
+resources:
+- repo: self
+
+variables:
+  tag: '1.5.$(Build.BuildId)'
+
+stages:
+- stage: Build 
+  displayName: Build JMeter cimage
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: Docker@2
+      displayName: Build an image
+      inputs:
+        command: build
+        dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
+        tags: |
+          $(tag)
+    - task: Bash@3
+      displayName: Performance Test
+      inputs:
+        targetType: 'inline'
+        script: |
+          docker run --name debug_perfmeter  getcarrier/perfmeter:1.5 -n -t /mnt/jmeter/FloodIO.jmx -JVUSERS=${{ variables.VUSERS }} -JRAMP_UP=1 -JDURATION=20
+          docker images
+    - task: Bash@3
+      displayName: Build new container
+      inputs:
+        targetType: 'inline'
+        script: |
+          docker build -t perfmeter:1.5.1
+
