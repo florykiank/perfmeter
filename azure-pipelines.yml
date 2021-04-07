@@ -3,17 +3,20 @@
 # https://docs.microsoft.com/azure/devops/pipelines/languages/docker
 
 trigger:
-- release-1.5
+- master
 
 resources:
 - repo: self
 
 variables:
-  tag: '1.5.$(Build.BuildId)'
+  tag: 'whatever.$(Build.BuildId)'
+  RAMP_UP: '1'
+  DARATION: '60'
+  VUSERS: '10'
 
 stages:
 - stage: Build 
-  displayName: Build JMeter cimage
+  displayName: Build JMeter image
   jobs:
   - job: Build
     displayName: Build
@@ -32,12 +35,29 @@ stages:
       inputs:
         targetType: 'inline'
         script: |
-          docker run --name debug_perfmeter  getcarrier/perfmeter:1.5 -n -t /mnt/jmeter/FloodIO.jmx -JVUSERS=${{ variables.VUSERS }} -JRAMP_UP=1 -JDURATION=20
-          docker images
-    - task: Bash@3
-      displayName: Build new container
+         docker images 
+         docker build -t test_perfmeter .
+         docker images 
+         mkdir report 
+         docker rm debug_perfmeter
+         docker run --rm -v $(Build.SourcesDirectory)/reports:/tmp/reports  -e JVM_ARGS="-Xms1g -Xmx1g" -e junit_report="True" -v /tmp/reports:/tmp/reports getcarrier/perfmeter:2.0.5.3 -n -t /mnt/jmeter/FloodIO.jmx -JVUSERS=${{ variables.VUSERS }} -JRAMP_UP=${{ variables.RAMP_UP }} -JDURATION=${{ variables.DARATION }}
+
+         ls -la reports
+
+        workingDirectory: '$(System.DefaultWorkingDirectory)/_florykiank_perfmeter'
+        displayName: 'Command Line Script'
+          #docker run --name debug_perfmeter  getcarrier/perfmeter:whatever.$(Build.BuildId) -n -t /mnt/jmeter/FloodIO.jmx -JVUSERS=${{ variables.VUSERS }} -JRAMP_UP=${{ variables.RAMP_UP }} -JDURATION=${{ variables.DARATION }}
+          #docker images
+          #docker run --name debug_perfmeter -v $(Build.SourcesDirectory)/reports:/tmp/reports -e junit_report=True getcarrier/perfmeter:1.5 -n -t /mnt/jmeter/FloodIO.jmx -JVUSERS=$(VUSERS ) -JRAMP_UP=$(RAMP_UP) -JDURATION=$(DARATION) -j /tmp/reports/jmeter_$(date +%s).log -l /tmp/reports/jmeter_$(date +%s).jtl -e -o /tmp/reports/HtmlReport_$(date +%s)
+    - task: PublishBuildArtifacts@1
       inputs:
-        targetType: 'inline'
-        script: |
-          docker build -t perfmeter:1.5.1
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: drop1
+          
+#     - task: Bash@3
+#       displayName: Publish
+#       inputs:
+#         targetType: 'inline'
+#         script: |
+#           docker build -t perfmeter:1.5.1
 
